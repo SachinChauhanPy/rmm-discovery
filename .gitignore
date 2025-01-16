@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs and debug output
+*.log
+debug.log
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+*.iml
+
+# User settings
+*.swp
+*.swo
+
+# Configuration and secrets
+*.env
+config.json
+secrets.json
+
+# Cache and temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Discovery-specific files
+devices.json  # Avoid storing discovered devices
