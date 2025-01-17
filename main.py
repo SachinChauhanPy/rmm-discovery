@@ -5,6 +5,7 @@ import subprocess
 import logging
 import csv
 import socket
+import uuid
 from typing import List, Tuple, Dict
 
 # Configure logging
@@ -27,24 +28,38 @@ class NetworkScanner:
 
     @staticmethod
     async def resolve_hostname(ip: str) -> str:
-        """Resolve the hostname for an IP address, with special handling for the local machine."""
+        """Resolve the hostname for an IP address with special handling for the probe machine."""
         try:
-            # Check if the IP matches one of the local machine's IP addresses
+            # Get all local IPs for the probe machine
             local_ips = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+            
+            # Check if the IP matches the probe machine's IP
             if ip in local_ips:
-                return socket.gethostname()  # Return the local machine's hostname
+                return socket.gethostname()  # Return the probe machine's hostname
 
-            # Resolve hostname for other IPs
-            hostname = await asyncio.get_running_loop().getnameinfo((ip, 0))
-            return hostname[0]
+            # Attempt DNS-based reverse lookup for other IPs
+            hostname, _, _ = socket.gethostbyaddr(ip)
+            return hostname
+        except socket.herror:
+            logging.warning(f"Reverse DNS lookup failed for {ip}.")
+            return "Unknown"
         except Exception as e:
             logging.error(f"Error resolving hostname for {ip}: {e}")
             return "Unknown"
 
     @staticmethod
     def get_mac_address(ip: str) -> str:
-        """Get the MAC address of a device using the ARP command."""
+        """Get the MAC address of a device, including the probe machine."""
         try:
+            # Check if the IP belongs to the probe machine
+            local_ips = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+            if ip in local_ips:
+                # Retrieve the MAC address of the local machine
+                mac = uuid.getnode()
+                mac_address = ':'.join(f'{(mac >> i) & 0xff:02x}' for i in range(40, -1, -8))
+                return mac_address
+
+            # Use ARP for other IPs
             cmd = ["arp", "-a", ip] if platform.system().lower() == "windows" else ["arp", "-n", ip]
             result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -148,7 +163,12 @@ class NetworkScanner:
 def main():
     """Main function to execute the network discovery."""
     cidr = input("Enter the CIDR range to scan (e.g., 192.168.1.0/24): ").strip()
-
+    
+    # Set the event loop policy for Windows
+    if platform.system().lower() == "windows":
+            asyncio.set_event_loop_policy(
+                asyncio.WindowsProactorEventLoopPolicy())
+    
     scanner = NetworkScanner()
 
     # Run the scan
